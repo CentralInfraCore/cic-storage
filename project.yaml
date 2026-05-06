@@ -24,4 +24,33 @@ x-cic:
   repo_type: domain
   base_primitive: cic-primitives@v0.1.2
 release:
-  version: 0.0.dev
+  version: 0.1.0
+  timestamp: '2026-05-06T16:46:02.475880+00:00'
+  repository_tree_hash: /7xhNNKiCMAAwuudAjxZwuzwwObo81cufNvUopaAjOY=
+  build_hash: z4Dy1ykeJ6XrhhD4XrWl+lGFN91Um1BF4eJz2SOPUlI=
+  sign: vault:v1:MEUCIFRO9i/yXrtbhuUT2Wu6f/6ACtQGKLGP2GoyKYrIdz97AiEAtxs+8Exijx69jxqIvyUAcZzs5hujQVupD+iR6abnpYA=
+  cert: '-----BEGIN CERTIFICATE-----
+
+    MIICBjCCAaygAwIBAgIUSnRMR6RPnEbg296XWPOqq/u5PCwwCgYIKoZIzj0EAwIw
+
+    QzELMAkGA1UEBhMCSFUxGTAXBgNVBAoMEENlbnRyYWxJbmZyYUNvcmUxGTAXBgNV
+
+    BAMMEENJQyBEZXZlbG9wZXIgQ0EwHhcNMjYwMzIwMTMyMjU5WhcNMjYxMjMxMTMy
+
+    MjU5WjBFMQswCQYDVQQGEwJIVTEZMBcGA1UECgwQQ2VudHJhbEluZnJhQ29yZTEb
+
+    MBkGA1UEAwwSR2Fib3IgWm9sdGFuIFNpbmtvMFkwEwYHKoZIzj0CAQYIKoZIzj0D
+
+    AQcDQgAEIG2CVmTfmLB9pLLclj7YmP2eedAjklpy4LGrU2ijoiy6Xqpuybv7OgJe
+
+    i+ez31s65NEV8+X/ByeX1cstR988z6N8MHowCQYDVR0TBAIwADAdBgNVHQ4EFgQU
+
+    yZN6AIX/TNnIJ9GwAa/NRN3ujHAwHwYDVR0jBBgwFoAUXn6CHYzPUqU4JVP8g+OS
+
+    WeDYjhcwDgYDVR0PAQH/BAQDAgeAMB0GA1UdJQQWMBQGCCsGAQUFBwMCBggrBgEF
+
+    BQcDBDAKBggqhkjOPQQDAgNIADBFAiEA+bFzXRoJ4PCQbhAAtpkcMjt0vNj5rEW0
+
+    lOMBGDNyaWkCIB1vmM7PcZzv/c9bIrxF5kqv6QXomouhByUfeNUTbpKW
+
+    -----END CERTIFICATE-----'
