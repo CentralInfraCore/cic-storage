@@ -26,3 +26,14 @@ dependencies:
       - LICENSE.meta.yaml
       - README.md
       - feature-list.md
+
+  - name: cic-primitives
+    source: github.com/CentralInfraCore/cic-primitives
+    tag: primitives/@v0.1.2
+    mode: remote-merge
+    purpose: primitive-schema-base
+    imported_paths:
+      - schemas/atomic/
+      - schemas/aggregate/
+      - schemas/index.yaml
+      - dependencies/

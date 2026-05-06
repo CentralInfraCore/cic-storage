@@ -57,10 +57,29 @@ spec:
       properties:
         kind:
           type: string
-          enum: [AtomicPrimitive, AggregatePrimitive, DomainComposition]
+          enum: [AtomicPrimitive, AggregatePrimitive, DomainComposition, AdapterContract]
 
   # ── Conditional rules by kind ─────────────────────────────────────────────────
   allOf:
+
+    # AdapterContract must have domain and operations
+    - if:
+        properties:
+          spec:
+            properties:
+              kind:
+                const: AdapterContract
+      then:
+        properties:
+          spec:
+            required: [domain, operations]
+            properties:
+              domain:
+                type: string
+                minLength: 1
+              operations:
+                type: array
+                minItems: 1
 
     # AtomicPrimitive must have at least one content property beyond kind
     - if:
