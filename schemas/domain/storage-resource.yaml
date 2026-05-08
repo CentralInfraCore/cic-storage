@@ -153,6 +153,8 @@ spec:
         atomic_ref: schemas/atomic/shape.yaml
         shape_type: scalar
         scalar_type: string
+        semantic_type: cic-reference
+        reference_target: "cic:compute:ComputeResource"
         role: state
         optional: true
         description: A ComputeResource address-e amelyhez csatolva van
