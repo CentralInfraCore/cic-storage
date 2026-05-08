@@ -393,6 +393,7 @@ spec:
 derivation_chain:
 
   yang:
+    status: specification-only
     module: cic-storage
     namespace: "urn:cic:storage"
     content: |
