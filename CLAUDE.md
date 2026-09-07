@@ -14,12 +14,16 @@ schema, kód vagy dokumentáció változtatás történik.
 ## Mi ez a rendszer
 
 A `cic-storage` egy **domain-repó** — a `cic-primitives` meta-séma rétegére épülve
-storage objektumokat lenne hivatva leírni, schema-szinten.
+storage objektumokat ír le, schema-szinten, **szándékosan provider-agnosztikus
+módon**: a kívánt tárolási állapotot (bucket, tier, titkosítás, hozzáférés)
+mondja ki, nem azt, hogy egy adott felhő (OCI/AWS/Azure/on-prem) hogyan
+valósítja meg. A tényleges létrehozás/felügyelet külön `cic-module-<provider>`
+modulok feladata a `cic:provider` WASM ABI-n keresztül.
 
 A `schemas/atomic/`+`schemas/aggregate/` alatti fájlok **öröklöttek** a
 `cic-primitives`-ból (a `base` remote-on át) — ez a repó nem definiálja őket.
-**Storage-specifikus domain composition egyelőre nincs megírva** —
-a `schemas/examples/kubernetes-pod.yaml` a `cic-primitives` öröklött
+A saját munka a domain-kompozíció: `schemas/examples/storage-bucket.yaml`
+(`StorageBucket`). A `kubernetes-pod.yaml` a `cic-primitives` öröklött
 sablon-demója, nem ennek a repónak a munkája.
 
 A primitívek azok az **irreducibilis szemantikai atomok és kompozícióik**, amelyekből
@@ -60,11 +64,12 @@ Amíg ez a négy pont nincs meg, ne tegyél tényállításokat a primitive mode
 | git repo bootstrap | **defined** | `git merge base@0.5.0` a `cic-primitives`-on át (nem közvetlen) |
 | `dependency.yaml` | **defined** | `base@0.5.0` composition lock (örökölt) |
 | `project.yaml` | **defined** | `x-cic.repo_type: domain` |
-| `schemas/` struktúra | **defined** | atomic/ + aggregate/ (örökölt), nincs saját examples/ |
+| `schemas/` struktúra | **defined** | atomic/ + aggregate/ (örökölt) + examples/storage-bucket.yaml (saját) |
 | atomic/aggregate réteg | **öröklött** | Shape, Role, Behavior, Contract, Address, Identity, Event, Access + surface-aggregate-ek |
-| Storage-specifikus domain composition | **NOT IMPLEMENTED** | egyetlen saját domain composition sincs még |
+| `StorageBucket` domain composition | **defined** | provider-agnosztikus, teljes surface-készlet, `make validate` zöld |
+| Provider modul kötés | **partial** | `cic-module-oracle-cloud` implemented; aws/azure/onprem concept |
 | `make validate` zöld | **defined** | Docker-alapú tooling, Vault nélkül is fut |
-| signed release pipeline | **defined** | lefutott (lásd git tag-ek), de storage-specifikus tartalom nélkül |
+| signed release pipeline | **defined** | lefutott (lásd git tag-ek) |
 
 ---
 
@@ -145,7 +150,8 @@ Immersion módban tilos hiányt feltételezni ott, ahol scaffold szándékos.
 |---|---|---|
 | `cic-primitives` | `base` | atomic/aggregate primitívák, tooling, signing hook, CI, Makefile, mk/infra.mk |
 | `base-repo` | közvetett (a `cic-primitives` saját `base` remote-ja) | eredeti tooling-sablon |
-| `CIC-Relay` | — | a runtime, ami (még nincs mit) futtatna ebből a repóból |
+| `cic-module-oracle-cloud` | — | provider modul, a `StorageBucket` intent egyik konkrét megvalósítója |
+| `CIC-Relay` | — | a runtime, ami a provider modulokat futtatja a `storage-bucket.yaml` kompozíció ellen |
 
 ---
 

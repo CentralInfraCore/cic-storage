@@ -1,6 +1,6 @@
 project:
   name: cic-storage
-  description: CIC storage domain — storage object schemas composed from cic-primitives atoms/aggregates (no domain-specific composition authored yet)
+  description: CIC storage domain — provider-agnostic storage intent schemas (StorageBucket) composed from cic-primitives atoms/aggregates; provider-specific creation/management is delegated to separate cic-module-<provider> modules via the cic:provider ABI
   license: CC-BY-NC-SA-4.0
   main_branch: storage/main
   owner: Gabor Zoltan Sinko

@@ -1,0 +1,386 @@
+---
+metadata:
+  name: StorageBucket
+  version: v0.1.dev
+  description: >
+    Provider-agnosztikus object-storage bucket mint ManagedEntity specializáció.
+    Ez a kompozíció azt írja le, MIT akarunk (kívánt tárolási állapot), nem azt,
+    HOGYAN valósítja meg egy adott felhő. A tényleges létrehozást/felügyeletet
+    provider-specifikus modulok végzik (cic-module-oracle-cloud, jövőben
+    cic-module-aws, cic-module-azure, cic-module-onprem) a cic:provider ABI-n
+    keresztül — lásd binding_surface és derivation_chain.module_abi.
+    Egyetlen mezőt sem szabad úgy megfogalmazni, hogy csak egy konkrét provider
+    API-jának felel meg; a provider-specifikus részletek (path-ok, enum-értékek,
+    SDK-anomáliák) a modul saját correspondence/binding rétegében élnek, NEM itt.
+  owner: Gabor Zoltan Sinko
+  tags:
+    - example
+    - domain-composition
+    - storage
+    - provider-agnostic
+  validatedBy:
+    name: cic-primitives
+    version: v0.1.5
+
+spec:
+  kind: DomainComposition
+  base:
+    aggregate: ManagedEntity
+    ref: schemas/aggregate/managed-entity.yaml
+
+  # ── Identity ────────────────────────────────────────────────────────────────
+  identity:
+    atomic_ref: schemas/atomic/identity.yaml
+    kind: StorageBucket
+    namespace: "cic:storage"
+    version: v0.1.5
+    base: "cic:core:ManagedEntity"
+    abstract: false
+    description: >
+      Objektum-tárolási konténer (bucket/container) — a legkisebb közös nevező
+      OCI Object Storage Bucket, AWS S3 Bucket, Azure Blob Container és
+      S3-kompatibilis on-prem tárolók (pl. MinIO) között.
+
+  # ── ConfigSurface (kívánt állapot — provider-független) ──────────────────────
+  config_surface:
+    aggregate_ref: schemas/aggregate/config-surface.yaml
+    nodes:
+      - name: bucket_name
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role: config
+        mandatory: true
+        description: >
+          Logikai bucket-név a CIC domain-en belül. A provider modul felelőssége
+          leképezni a saját névtér-szabályaira (pl. OCI namespace+bucket kettős
+          címzés, S3 globális egyediség, Azure storage-account+container pár) —
+          ez a mező maga provider-semleges azonosító.
+        contract:
+          - type: pattern
+            expression: "^[a-z0-9][a-z0-9-]{1,61}[a-z0-9]$"
+            error_message: bucket_name kisbetűs, kötőjeleket tartalmazó, 3-63 karakteres azonosító
+
+      - name: storage_class
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role: config
+        optional: true
+        default: standard
+        description: >
+          Absztrakt tárolási osztály/tier. Minden provider modul a saját natív
+          enumjára képezi le (pl. OCI Standard/InfrequentAccess/Archive,
+          AWS Standard/Standard-IA/Glacier, Azure Hot/Cool/Archive) — a leképezés
+          nem szükségszerűen 1:1, a modul dönt a legközelebbi megfelelőről és ezt
+          state_surface.reported_storage_class-ban visszajelzi.
+        contract:
+          - type: enum
+            expression: [standard, infrequent-access, archive]
+            error_message: storage_class csak standard, infrequent-access vagy archive lehet
+
+      - name: versioning_enabled
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: boolean
+        role: config
+        optional: true
+        default: false
+        description: Objektum-verziózás kívánt állapota. Nem minden provider/tier támogatja azonos szemantikával.
+
+      - name: public_access
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role: config
+        optional: true
+        default: private
+        description: Absztrakt hozzáférési szint — a provider modul fordítja le saját ACL/policy modelljére.
+        contract:
+          - type: enum
+            expression: [private, public-read]
+            error_message: public_access csak private vagy public-read lehet
+
+      - name: encryption_enabled
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: boolean
+        role: config
+        optional: true
+        default: true
+        description: Titkosítási szándék — kívánt állapot, provider-semleges.
+
+      - name: kms_key_ref
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role: config
+        optional: true
+        description: >
+          Provider-semleges logikai kulcs-hivatkozás (pl. Vault Transit key név).
+          A modul felelőssége leképezni a saját KMS/HSM integrációjára, vagy
+          jelezni, ha a provider csak platform-managed kulcsot kínál. Csak
+          encryption_enabled=true esetén értelmezett.
+        contract:
+          - type: when
+            expression: "../encryption_enabled = 'true'"
+            error_message: kms_key_ref csak encryption_enabled=true esetén engedélyezett
+
+      - name: labels
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: collection
+        collection_variant: list
+        role: config
+        optional: true
+        description: >
+          Generikus kulcs-érték címkék. A provider modul felelőssége leképezni a saját
+          tag/label mechanizmusára (pl. OCI freeform + defined tags két külön namespace-e
+          egyetlen listaként jelenik meg itt — a szétválasztás modul-specifikus konverzió).
+        item_fields:
+          - name: key
+            shape_type: scalar
+            scalar_type: string
+            role: key
+          - name: value
+            shape_type: scalar
+            scalar_type: string
+
+  # ── StateSurface (megfigyelt állapot — a modul jelenti vissza) ───────────────
+  state_surface:
+    aggregate_ref: schemas/aggregate/state-surface.yaml
+    source: provider-module
+    freshness:
+      ttl: 5m
+      strategy: polling
+    nodes:
+      - name: provisioning_state
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role_ref: schemas/atomic/role.yaml
+        role: state
+        description: A modul ABI observe hívásának normalizált eredménye
+        contract:
+          - type: enum
+            expression: [creating, active, updating, deleting, error, unknown]
+
+      - name: reported_storage_class
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role_ref: schemas/atomic/role.yaml
+        role: state
+        description: >
+          A provider által ténylegesen alkalmazott tier, a modul saját enumjából
+          a config_surface.storage_class absztrakt értékére visszafordítva.
+          Eltérés a kívánt és jelentett érték között drift-jelzés (lásd runtime.reconcile_loop).
+
+      - name: endpoint_ref
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role_ref: schemas/atomic/role.yaml
+        role: operational
+        description: >
+          Provider-specifikus elérési azonosító/URL, opakán kezelve ezen a rétegen
+          (pl. OCI-nál namespace+region-alapú URL, S3-nál virtual-hosted URL) —
+          ezen a szinten csak átlátszó string, nem parszolt szerkezet.
+
+      - name: object_count_approx
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: integer
+        role_ref: schemas/atomic/role.yaml
+        role: volatile
+        optional: true
+        description: >
+          Becsült objektumszám, ha a provider olcsón szolgáltatja (best-effort,
+          nem minden modul tölti ki — conformance jelzi provider-modulonként).
+        access:
+          value: null
+          access: ["*"]
+          modify: []
+          inherit: true
+          default_injection: null
+          conformance: not_implemented
+
+      - name: created_at
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role_ref: schemas/atomic/role.yaml
+        role: state
+        description: A modul által jelentett létrehozási időbélyeg, ISO-8601 formában normalizálva
+
+      - name: last_observed
+        atomic_ref: schemas/atomic/shape.yaml
+        shape_type: scalar
+        scalar_type: string
+        role_ref: schemas/atomic/role.yaml
+        role: volatile
+        description: Legutóbbi sikeres observe hívás időbélyege — cache TTL után eldobható
+
+  # ── OperationSurface (a modul ABI-n átfolyó absztrakt akciók) ────────────────
+  operation_surface:
+    aggregate_ref: schemas/aggregate/operation-surface.yaml
+    operations:
+      - name: reconcile
+        atomic_ref: schemas/atomic/behavior.yaml
+        type: action
+        idempotent: true
+        description: >
+          config_surface vs. state_surface diff alapján plan+execute a kötött
+          provider modulon keresztül (cic:provider ABI: plan → execute). Ez az
+          egyetlen módja a bucket létrehozásának/módosításának — nincs külön
+          create/update action, mert azok providerenként eltérő műveletsorra
+          bomlanak (lásd derivation_chain.module_abi).
+        input: null
+        output:
+          - name: provisioning_state
+            shape_type: scalar
+            scalar_type: string
+
+      - name: empty-and-delete
+        atomic_ref: schemas/atomic/behavior.yaml
+        type: action
+        idempotent: false
+        description: >
+          Minden objektum törlése a bucketből, majd maga a bucket törlése
+          (cic:provider ABI: execute a "destroy" intent-tel). Explicit, külön
+          akcióként modellezve, mert visszafordíthatatlan és sok providernél
+          csak üres bucket törölhető — ez a domain-szintű üzleti szabály, nem
+          provider-részlet.
+        input: null
+        output:
+          - name: deleted_at
+            shape_type: scalar
+            scalar_type: string
+
+      - name: rotate-encryption-key
+        atomic_ref: schemas/atomic/behavior.yaml
+        type: operation
+        idempotent: false
+        description: >
+          encryption.kms_key_ref cseréje futó re-encryption job-bal. Async —
+          job-referenciát ad vissza (cic:provider ABI: invoke + poll).
+        input:
+          - name: new_kms_key_ref
+            shape_type: scalar
+            scalar_type: string
+        output:
+          - name: job_id
+            shape_type: scalar
+            scalar_type: string
+
+  # ── NotificationSurface ──────────────────────────────────────────────────────
+  notification_surface:
+    events:
+      - name: provisioning-state-changed
+        atomic_ref: schemas/atomic/event.yaml
+        trigger: state_change
+        severity: warning
+        description: provisioning_state megváltozott (pl. active → error)
+        payload:
+          - name: previous_state
+            shape_type: scalar
+            scalar_type: string
+          - name: current_state
+            shape_type: scalar
+            scalar_type: string
+
+      - name: storage-class-drift-detected
+        atomic_ref: schemas/atomic/event.yaml
+        trigger: threshold
+        severity: error
+        description: reported_storage_class eltér a config_surface.storage_class kívánt értékétől
+        payload:
+          - name: desired
+            shape_type: scalar
+            scalar_type: string
+          - name: reported
+            shape_type: scalar
+            scalar_type: string
+
+  # ── PolicySurface ────────────────────────────────────────────────────────────
+  policy_surface:
+    aggregate_ref: schemas/aggregate/policy-surface.yaml
+    default_access: ["*"]
+    default_modify: ["OU=storage-operators,O=cic"]
+    surface_rules:
+      - surface: state_surface
+        access: ["*"]
+        modify: []
+      - surface: config_surface
+        access: ["*"]
+        modify: ["OU=storage-operators,O=cic"]
+    inherit_policy: true
+
+  # ── BindingSurface ───────────────────────────────────────────────────────────
+  # Szándékosan NEM egy konkrét provider REST API-jára mutat (mint a hálózati
+  # domainnél a RESTCONF, ami maga a hálózati eszközök valós protokollja).
+  # A storage domain "vezetéke" a CIC saját, minden provider modulra egyformán
+  # kötelező cic:provider WASM ABI-ja — ez a provider-független megfelelője.
+  binding_surface:
+    addresses:
+      - atomic_ref: schemas/atomic/address.yaml
+        schema_path: "/cic-storage:buckets/bucket={bucket_name}"
+        logical_id: "cic:storage:bucket:{bucket_name}"
+        namespace: "cic:storage"
+    adapter: cic-provider-module
+    adapter_contract_ref: derivation_chain.module_abi
+
+# ── Levezetési lánc (reality check) ───────────────────────────────────────────
+derivation_chain:
+
+  module_abi:
+    description: >
+      A generikus intent és a provider-specifikus végrehajtás közötti kötelező
+      érintkezési felület. Minden cic-module-<provider> ugyanezt a 8 műveletet
+      implementálja (lásd cic-module-oracle-cloud/module/provider.go — jelenleg
+      az egyetlen implemented provider modul), a domain composition csak eddig
+      a határig "lát":
+    ops:
+      describe: "Modul metaadatai — mely resource-okat/verziókat támogatja"
+      validate: "config_surface szintaktikai/szemantikai ellenőrzése provider-oldalon (pl. bucket_name ütközik-e a provider névtér-szabályaival)"
+      plan:     "config_surface + state_surface → tervezett műveletsor (create/update/no-op), provider-specifikus lépésekre bontva, de itt nem látható részletekkel"
+      execute:  "plan végrehajtása a valós provider API ellen"
+      observe:  "provider API lekérdezése → state_surface normalizált frissítése"
+      destroy:  "empty-and-delete action mögötti tényleges törlés"
+      invoke:   "async provider-oldali akció indítása (pl. rotate-encryption-key)"
+      poll:     "async akció állapotának lekérdezése (job_id → állapot)"
+    note: >
+      A path-ok, HTTP-igék, enum-értékek, SDK-anomáliák (pl. OCI namespace
+      tenancy-szintű mező, vagy hogy UpdateBucket POST és nem PUT) KIZÁRÓLAG
+      a provider modul saját correspondence/binding rétegében élnek
+      (cic-module-oracle-cloud/module/correspondence/*.json mintájára) — ezen
+      a domain-repón ilyen részlet szándékosan NEM jelenik meg.
+
+  provider_mapping:
+    - provider: oracle-cloud
+      module: cic-module-oracle-cloud
+      status: implemented
+      note: Object Storage Bucket API-ra fordít; namespace+bucket kettős címzés a modul belső ügye.
+    - provider: aws
+      module: cic-module-aws
+      status: concept
+      note: S3 Bucket API-ra fordítana; bucket_name globális egyediségi szabálya modul-oldali validate feladat.
+    - provider: azure
+      module: cic-module-azure
+      status: concept
+      note: Blob Storage Container-re fordítana; storage-account+container pár leképezése modul-oldali probléma.
+    - provider: onprem
+      module: cic-module-onprem
+      status: concept
+      note: S3-kompatibilis (pl. MinIO) végpontra fordítana.
+
+  runtime:
+    reconcile_loop: |
+      1. observe:  provider-module.observe(bucket_name) → state_surface
+      2. compare:  diff(config_surface, state_surface) → drift?
+      3. if drift:
+           provider-module.plan(config_surface, state_surface) → lépéslista
+           provider-module.execute(lépéslista) → provisioning_state frissül
+      4. emit:     provisioning-state-changed / storage-class-drift-detected event ha eltérés
+    conformance_enforcement: >
+      object_count_approx not_implemented egy adott provider modulon: olvasáskor
+      null-t ad vissza, NEM hibázik — best-effort mező, nem kötelező garancia.

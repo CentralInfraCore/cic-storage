@@ -5,8 +5,8 @@ primitíva-grammatika tervezési háttere, nem a `cic-storage` saját döntései
 `primitive.txt` hivatkozott részletes thread **nem létezik ebben a repóban**
 (a `cic-primitives`-ban él).
 
-A `cic-storage` egyelőre nem hozott saját, storage-specifikus tervezési döntést —
-nincs saját domain composition, aminek a tervezése ezt indokolná.
+A `cic-storage` saját, storage-specifikus tervezési döntése: **D-015** legalul,
+a `StorageBucket` domain composition provider-agnosztikus tervezéséről.
 
 ---
 
@@ -347,3 +347,46 @@ de schema szinten nincs kényszerítve.
 
 **Ajánlott:** opció 1 — a CIC modell értéke részben a tipizált referencia láncon múlik.
 Ha ez csak string, a schema-driven tooling nem tudja feloldani a dependency gráfot.
+
+---
+
+## D-015 — StorageBucket: provider-agnosztikus domain composition (2026-09-07)
+
+**Státusz:** lezárva — a `cic-storage` saját, első döntése (nem öröklött a `cic-primitives`-ból)
+
+**Helyzet:**
+A `cic-storage` mellett fut egy konkrét provider modul (`cic-module-oracle-cloud`),
+ami az OCI Object Storage Bucket API-t implementálja `config`/`state`/`operations`
+JSON Schema triádként (draft-07, `x-cic-*` vendor extension-ökkel — teljesen külön
+dialektus, lásd a modul saját dokumentációját). Az első próbálkozás a
+`StorageBucket` domain compositionra közvetlenül az OCI SDK Bucket API alakját
+másolta le (OCI-specifikus `storageTier` enum, `namespace`/POST-nem-PUT SDK
+anomáliák a binding_surface-ben, OCI path-struktúra a derivation_chain-ben).
+
+**Probléma:** ez összekeverte a két réteget. Az eredeti elgondolás — amit a
+tervezés csak utólag tett explicitté — az volt, hogy a `cic-storage` egy
+**általános, provider-független tárolási intent-et** ír le (mit akarunk), és
+a provider modulok (oracle/aws/azure/on-prem) **külön-külön** valósítják meg/
+felügyelik ezt az intentet a saját API-juk ellen. Az OCI-specifikus alak
+közvetlenül a domain rétegbe szivárgott volna — pontosan azt a réteget törve
+össze, aminek a szétválasztását ez az egész architektúra szolgálja.
+
+**Döntés:**
+1. `config_surface`/`state_surface` csak olyan mezőket tartalmazhat, ami minden
+   ismert/tervezett object-storage providerre értelmes absztrakció (pl.
+   `storage_class: standard|infrequent-access|archive` — nem OCI enumértékek).
+2. `binding_surface`/`derivation_chain` NEM egy konkrét provider REST API-jára
+   mutat (szemben a `cic-network`-kel, ahol a RESTCONF/YANG maga a hálózati
+   eszközök valós protokollja — ott ez helyénvaló). A storage domain "vezetéke"
+   a `cic:provider` WASM ABI (describe/validate/plan/execute/observe/destroy/
+   invoke/poll) — ezt implementálja egyformán minden `cic-module-<provider>`.
+3. Provider-specifikus részletek (path-ok, HTTP-igék, SDK-anomáliák, enum-
+   leképezések) kizárólag a modul saját correspondence/binding rétegében élnek
+   (`cic-module-oracle-cloud/module/correspondence/*.json` mintájára) — a
+   domain-repóban explicit `derivation_chain.provider_mapping` csak felsorolja
+   a modulokat és státuszukat (oracle-cloud: implemented; aws/azure/onprem: concept).
+
+**Következmény:** ha egy mező csak egyetlen provider natív fogalmával írható le
+értelmesen, az NEM kerülhet a domain compositionba — vagy általánosítani kell
+(pl. `object_count_approx` best-effort, providerenkénti conformance-szal), vagy
+ki kell hagyni és a modul saját state-jébe kell tenni, amit a domain réteg nem lát.

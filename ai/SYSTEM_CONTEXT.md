@@ -10,8 +10,15 @@ A `cic-storage` egy **domain-repó** a `cic-primitives` (a CentralInfraCore
 meta-séma rétege) fölött — storage objektumokat lenne hivatva leírni.
 
 Ez a fájl az öröklött primitíva-modellt magyarázza (a `cic-primitives`-ból
-származik) — ez a repó maga nem a meta-séma réteg, és egyelőre nincs saját
-storage-specifikus domain compositionja sem.
+származik) — ez a repó maga nem a meta-séma réteg. Saját domain compositionja
+van: `schemas/examples/storage-bucket.yaml` (`StorageBucket`), **szándékosan
+provider-agnosztikus** — leírja mit akarunk (kívánt tárolási állapot), nem azt
+hogy egy adott felhő (OCI/AWS/Azure/on-prem) hogyan valósítja meg. A tényleges
+létrehozást/felügyeletet külön `cic-module-<provider>` modulok végzik a
+`cic:provider` WASM ABI-n (describe/validate/plan/execute/observe/destroy/
+invoke/poll) keresztül — lásd a composition `derivation_chain.module_abi` és
+`provider_mapping` blokkját. Jelenleg egyedül a `cic-module-oracle-cloud` a
+`status: implemented` provider; aws/azure/onprem `status: concept`.
 
 A primitívek két szinten léteznek:
 
@@ -152,9 +159,10 @@ spec:
 **A "Phase 1–7" történet fentebb (git bootstrap, atomic/aggregate réteg,
 `make validate` zöld) a `cic-primitives` saját fejlesztési naplója** — ez a
 repó ezt öröklés útján kapta meg, nem maga hajtotta végre. A `cic-storage` saját,
-valódi státusza: a release pipeline lefutott (git tag-ek tanúsítják), de
-**storage-specifikus domain composition egyelőre nincs megírva** — lásd a
-README "Aktuális állapot" táblázatát.
+valódi státusza: a release pipeline lefutott (git tag-ek tanúsítják), és
+**van saját, provider-agnosztikus domain composition** —
+`schemas/examples/storage-bucket.yaml` (`StorageBucket`), `make validate` alatt
+zöld — lásd a README "Aktuális állapot" táblázatát.
 |---|---|
 | git init + `git merge base@0.5.0` | **defined** |
 | `dependency.yaml` (D-007) | **defined** |

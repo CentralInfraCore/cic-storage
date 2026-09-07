@@ -1,12 +1,13 @@
 version: 1
 context: cic-storage
 
-# MEGJEGYZÉS: az alábbi entries teljes egészében a `cic-primitives` saját,
-# öröklött (scaffold-másolással idekerült) bootstrap-története — mind
+# MEGJEGYZÉS: az alábbi entries (Phase 1-8) teljes egészében a `cic-primitives`
+# saját, öröklött (scaffold-másolással idekerült) bootstrap-története — mind
 # "done", és mind a primitíva-réteg (atomic/aggregate schemas) LÉTREHOZÁSÁRÓL
-# szól, amit ez a repo sosem hajtott végre, csak örökölt. Ez a repo
-# (cic-storage) egyelőre nem hajtott végre semmilyen saját, storage-specifikus
-# task-ot — nincs domain composition, csak az örökölt sablon.
+# szól, amit ez a repo sosem hajtott végre, csak örökölt.
+#
+# Ez a repo (cic-storage) saját, valódi munkája a lenti "Phase 9" entry:
+# a StorageBucket domain composition, provider-agnosztikus tervezéssel.
 
 # Státuszok: pending | in_progress | done | blocked
 
@@ -489,3 +490,34 @@ entries:
       Dockerfile-ba kellett: git, curl, jq + safe.directory /app
       build_hash = source_hash egyelőre (tényleges build env nincs)
       yq PATH issue: make release-ben tools/release.sh fallback-kel futott
+
+  # ── Phase 9: StorageBucket domain composition (cic-storage saját munkája) ───
+  # Kiváltó: a cic-module-oracle-cloud (OCI provider modul) mellé kellett egy
+  # domain-szintű intent-leírás, amit a modul(ok) reconcile-olnak. Első kísérlet
+  # OCI Bucket API-ra húzva tévedés volt (provider-specifikus enumok/path-ok a
+  # domain rétegbe szivárogtak) — javítva provider-agnosztikus tervezésre.
+
+  - task: "storage-bucket-domain-composition"
+    status: done
+    priority: 27
+    milestone: example
+    blocked_by: "domain-specialization-compatibility-check"
+    prompt: |
+      Hozd létre a StorageBucket domain compositiont: schemas/examples/storage-bucket.yaml
+      Provider-agnosztikus tervezés — a config_surface/state_surface csak olyan
+      mezőket tartalmazhat, ami minden object-storage providerre (OCI/AWS/Azure/
+      on-prem) értelmes absztrakció szintjén értelmezhető:
+        ConfigSurface.nodes: bucket_name, storage_class (absztrakt enum),
+          versioning_enabled, public_access, encryption_enabled, kms_key_ref, labels
+        StateSurface.nodes: provisioning_state, reported_storage_class,
+          endpoint_ref (opak string), object_count_approx (best-effort),
+          created_at, last_observed
+        OperationSurface.operations: reconcile, empty-and-delete, rotate-encryption-key
+      BindingSurface + derivation_chain NEM egy konkrét provider API-ra mutat —
+      a "vezeték" a cic:provider WASM ABI (describe/validate/plan/execute/
+      observe/destroy/invoke/poll), amit minden cic-module-<provider> egyformán
+      implementál. Provider-specifikus részletek (path, HTTP-ige, SDK-anomália)
+      a modul saját correspondence rétegében élnek, nem itt —
+      derivation_chain.provider_mapping csak a modulokat sorolja fel
+      (oracle-cloud: implemented; aws/azure/onprem: concept).
+    accept: make validate (storage-bucket.yaml sealed/required/defaulted kompatibilis)
