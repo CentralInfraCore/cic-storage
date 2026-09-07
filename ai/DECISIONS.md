@@ -390,3 +390,50 @@ közvetlenül a domain rétegbe szivárgott volna — pontosan azt a réteget t�
 értelmesen, az NEM kerülhet a domain compositionba — vagy általánosítani kell
 (pl. `object_count_approx` best-effort, providerenkénti conformance-szal), vagy
 ki kell hagyni és a modul saját state-jébe kell tenni, amit a domain réteg nem lát.
+
+---
+
+## D-016 — Két divergált domain composition ugyanarra a repóra (2026-09-07, NYITOTT)
+
+**Státusz:** nyitott — döntés/egyeztetés szükséges, nincs megoldás elfogadva
+
+**Helyzet:**
+A D-015 (`StorageBucket`, `devel` ág) megírása közben kiderült egy korábbi hiba:
+egy azonos-napi identitás-javító commit (`625eba7`, PR #2) azt állította, hogy
+a `cic-storage`-nak "egyelőre nincs storage-specifikus domain compositionja" —
+ez **hiányos ellenőrzésen alapuló, téves állítás** volt. Csak a `devel` és
+`main` ágat néztük meg; nem futtattunk `git ls-remote`/branch-listát a teljes
+originra.
+
+A valóság (`git ls-remote origin` alapján, megerősítve GHCR-rel is):
+- `storage/main` (origin, `e97c311`) — bootstrap commit, ELEVE helyes
+  `cic-storage` identitással, és tartalmazza a **valódi** domain munkát:
+  `schemas/domain/storage-resource.yaml` (`StorageResource`) +
+  `schemas/adapters/storage-adapter.yaml` (`StorageAdapter`)
+- `storage/releases/v0.1.0` (origin, `cdb5f45`) — a bootstrap + 4 finomító
+  commit (integrációs teszt B-006, yang spec-only jelölés B-009,
+  `cic-reference` típusozás B-008 az `attached_to` mezőn, build_hash doc B-005)
+- Ez a tartalom **GHCR-en publikálva van** (`v0.1.2-src2026`) — megerősítve
+  bájt-egyezéssel egy lokális, sosem originre pusholt `storage/@v0.1.2` tag-gel
+- Ez a vonal **egy közös őspontból** (`e994531`, `main` csúcsa, ami MÉG MINDIG
+  `cic-primitives` identitású) vált külön a `devel`-től — testvérágak, nem
+  szülő-gyerek viszony
+
+**A `StorageResource` modell más mechanizmust használ, mint a `StorageBucket`:**
+- `StorageResource`: EGYETLEN composition, `backend`/`provider`/`location`/`id`
+  4-részes cím + `capability:` mezőcímkék + `adapter_capabilities.known_adapters`
+  — hypervisor/SAN/cloud mind egy sémában, capability-negotiation modell
+- `StorageBucket` (D-015): `cic:provider` WASM ABI-ra kötés, `provider_mapping`
+  lista a modulokról, nincs capability-tag mechanizmus
+
+**Nyitott kérdés:** melyik mechanizmust vigyük tovább (vagy hogyan egyesítsük),
+és hogyan hozzuk vissza a `StorageResource`/`StorageAdapter` tartalmat a
+`devel`-re (cherry-pick lépésenként vs. összevont restore-commit) — ez a döntés
+még nem született meg. Eddig csak annyi történt, hogy a `625eba7` hamis
+állítását javítottuk ki a README/CLAUDE.md/ai/*-ban (ez a commit), a tényleges
+egyesítés még nem.
+
+**Tanulság:** repó "üres" állapotát kimondani kizárólag `devel`/`main` alapján
+elégtelen — a teljes `git ls-remote origin` (branches + tags) és a csomag-
+registry (GHCR) ellenőrzése kötelező, mielőtt bármilyen "nincs X" állítás
+dokumentumba kerül.

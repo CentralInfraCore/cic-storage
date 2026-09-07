@@ -6,8 +6,15 @@ context: cic-storage
 # "done", és mind a primitíva-réteg (atomic/aggregate schemas) LÉTREHOZÁSÁRÓL
 # szól, amit ez a repo sosem hajtott végre, csak örökölt.
 #
-# Ez a repo (cic-storage) saját, valódi munkája a lenti "Phase 9" entry:
+# Ez a repo (cic-storage) `devel` ágának saját munkája a lenti "Phase 9" entry:
 # a StorageBucket domain composition, provider-agnosztikus tervezéssel.
+#
+# ⚠ FONTOS: ez a `devel` ágon KÍSÉRLETI, nem egyeztetett vázlat (PR #3 lezárva
+# mergelés nélkül). Létezik egy VALÓDI, korábbi, kész munka ugyanerre a
+# domainre — StorageResource + StorageAdapter — a storage/main és
+# storage/releases/v0.1.0 ágakon (origin, GHCR-en publikálva), ami sosem lett
+# a devel-re mergelve. A két tervezet egyeztetése nyitott feladat — lásd
+# ai/DECISIONS.md D-015/D-016.
 
 # Státuszok: pending | in_progress | done | blocked
 
@@ -521,3 +528,11 @@ entries:
       derivation_chain.provider_mapping csak a modulokat sorolja fel
       (oracle-cloud: implemented; aws/azure/onprem: concept).
     accept: make validate (storage-bucket.yaml sealed/required/defaulted kompatibilis)
+    notes: |
+      2026-09-07: a séma megvan és validál, DE a PR (#3) lezárva mergelés
+      nélkül — utólag kiderült, hogy létezik egy korábbi, valódi, kész munka
+      ugyanerre a domainre (StorageResource+StorageAdapter, storage/main és
+      storage/releases/v0.1.0 ágakon, GHCR-en publikálva), amivel ezt a
+      tervezetet egyeztetni kell, mielőtt bármelyik véglegesnek tekinthető.
+      Lásd ai/DECISIONS.md D-016. Ez a task ezért NEM tekinthető lezártnak
+      a repó egésze szempontjából, csak a `devel` ágon elkészült egy vázlat.

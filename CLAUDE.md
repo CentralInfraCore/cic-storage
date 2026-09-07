@@ -11,6 +11,25 @@
 Ha nem `devel`-en vagyunk: figyelmeztetés, és átváltás `devel`-re mielőtt bármilyen
 schema, kód vagy dokumentáció változtatás történik.
 
+## ⚠ Ágak közötti eltérés — KÖTELEZŐ elolvasni válasz előtt
+
+A `devel`-en (ez a fájl is itt él) **nincs** egyeztetett, kanonikus storage
+domain composition. `schemas/examples/storage-bucket.yaml` (`StorageBucket`)
+egy kísérleti, provider-agnosztikus vázlat innen a `devel`-ről, lezárt (nem
+mergelt) PR-rel — NEM tekinthető véglegesnek.
+
+Eközben létezik egy **valódi, korábban elkészült munka** — `StorageResource`
++ `StorageAdapter` (block volume, hypervisor/SAN/cloud, capability-alapú
+konformancia) — a `storage/main` és `storage/releases/v0.1.0` ágakon
+(origin, GHCR-en publikálva `v0.1.2-src2026` néven), ami **sosem lett
+mergelve a `devel`-re**. A PR #2 (`625eba7`) korábban tévesen "nincs
+storage-specifikus domain composition" állapotot dokumentált — csak a
+`devel`-re volt igaz, a repó egészére nem. Lásd `ai/DECISIONS.md` D-015/D-016.
+
+Amíg ez nincs egyeztetve: ne állítsd, hogy a `StorageBucket` a repó
+"a" domain compositionja — mondd ki mindkét tervezetet és az egyeztetetlen
+állapotot.
+
 ## Mi ez a rendszer
 
 A `cic-storage` egy **domain-repó** — a `cic-primitives` meta-séma rétegére épülve
@@ -22,9 +41,9 @@ modulok feladata a `cic:provider` WASM ABI-n keresztül.
 
 A `schemas/atomic/`+`schemas/aggregate/` alatti fájlok **öröklöttek** a
 `cic-primitives`-ból (a `base` remote-on át) — ez a repó nem definiálja őket.
-A saját munka a domain-kompozíció: `schemas/examples/storage-bucket.yaml`
-(`StorageBucket`). A `kubernetes-pod.yaml` a `cic-primitives` öröklött
-sablon-demója, nem ennek a repónak a munkája.
+A `devel` ág saját (nem végleges) munkája: `schemas/examples/storage-bucket.yaml`
+(`StorageBucket`) — lásd fent a figyelmeztetést. A `kubernetes-pod.yaml` a
+`cic-primitives` öröklött sablon-demója, nem ennek a repónak a munkája.
 
 A primitívek azok az **irreducibilis szemantikai atomok és kompozícióik**, amelyekből
 bármilyen menedzselt objektum strukturált, validálható, verziózott YAML sémává fordítható
@@ -64,9 +83,10 @@ Amíg ez a négy pont nincs meg, ne tegyél tényállításokat a primitive mode
 | git repo bootstrap | **defined** | `git merge base@0.5.0` a `cic-primitives`-on át (nem közvetlen) |
 | `dependency.yaml` | **defined** | `base@0.5.0` composition lock (örökölt) |
 | `project.yaml` | **defined** | `x-cic.repo_type: domain` |
-| `schemas/` struktúra | **defined** | atomic/ + aggregate/ (örökölt) + examples/storage-bucket.yaml (saját) |
+| `schemas/` struktúra | **defined** | atomic/ + aggregate/ (örökölt) + examples/storage-bucket.yaml (`devel`, kísérleti) |
 | atomic/aggregate réteg | **öröklött** | Shape, Role, Behavior, Contract, Address, Identity, Event, Access + surface-aggregate-ek |
-| `StorageBucket` domain composition | **defined** | provider-agnosztikus, teljes surface-készlet, `make validate` zöld |
+| `StorageBucket` domain composition (`devel`) | **draft, nem egyeztetett** | provider-agnosztikus vázlat, `make validate` zöld, PR #3 lezárva mergelés nélkül |
+| `StorageResource`+`StorageAdapter` (valódi, más ágon) | **defined, de nincs a `devel`-en** | `storage/main` / `storage/releases/v0.1.0`, GHCR-en publikálva |
 | Provider modul kötés | **partial** | `cic-module-oracle-cloud` implemented; aws/azure/onprem concept |
 | `make validate` zöld | **defined** | Docker-alapú tooling, Vault nélkül is fut |
 | signed release pipeline | **defined** | lefutott (lásd git tag-ek) |

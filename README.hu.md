@@ -7,14 +7,17 @@ A `cic-storage` a `cic-primitives` **meta-séma rétegére** épülő domain-rep
 storage objektumokat ír le, a `cic-primitives` atomic/aggregate primitíváinak
 kompozíciójaként.
 
-**Fontos architekturális elv: ez a repó szándékosan provider-agnosztikus.**
-A `cic-storage` azt írja le, MIT akarunk (kívánt tárolási állapot — bucket,
-tier, titkosítás, hozzáférés), nem azt, hogy egy konkrét felhő (OCI/AWS/Azure/
-on-prem) hogyan valósítja meg. A tényleges létrehozást/felügyeletet külön
-`cic-module-<provider>` modulok végzik a `cic:provider` WASM ABI-n keresztül
-(pl. `cic-module-oracle-cloud` — jelenleg az egyetlen implemented modul).
-Provider-specifikus részletek (path-ok, HTTP-igék, SDK-anomáliák) szándékosan
-NEM jelennek meg itt — azok a modul saját correspondence/binding rétegében élnek.
+> **⚠ Ágak közötti eltérés (2026-09-07 óta ismert, még nem oldott meg):**
+> ez a README a **`devel`** ág állapotát írja le. A `devel`-en **nincs**
+> ténylegesen egyeztetett, kanonikus storage domain composition — az alábbi
+> `StorageBucket` egy kísérleti, provider-agnosztikus tervezési vázlat, amit
+> egy lezárt (nem mergelt) PR kísért, és amit egyeztetni kell egy MÁR LÉTEZŐ,
+> valódi, korábban elkészült munkával: `StorageResource` + `StorageAdapter`,
+> ami a `storage/main` és `storage/releases/v0.1.0` ágakon él (GHCR-en is
+> publikálva `v0.1.2-src2026` néven — lásd lent), de **sosem lett mergelve
+> a `devel`-re**. Ezt a repót korábban (PR #2, `625eba7`) tévesen "nincs
+> storage-specifikus domain compositionja" állapotúnak dokumentáltuk — ez a
+> `devel` ágra igaz volt, de a repó egészére nem. Lásd `ai/DECISIONS.md` D-015/D-016.
 
 ---
 
@@ -24,11 +27,12 @@ NEM jelennek meg itt — azok a modul saját correspondence/binding rétegében 
 |---|---|---|---|
 | **atomic primitive** | 8 irreducibilis atom — Shape, Role, Behavior, Contract, Address, Identity, Event, Access | `schemas/atomic/` | öröklött a `cic-primitives`-ból |
 | **aggregate primitive** | Kompozíció sealed/defaulted/required slot-okkal | `schemas/aggregate/` | öröklött a `cic-primitives`-ból |
-| **domain composition** | `StorageBucket` — provider-agnosztikus object-storage intent | `schemas/examples/storage-bucket.yaml` | **ennek a repónak a saját munkája** |
+| **domain composition (`devel`, kísérleti)** | `StorageBucket` — provider-agnosztikus object-storage intent tervezési vázlat | `schemas/examples/storage-bucket.yaml` | ennek a repónak a `devel` ágán készült, PR lezárva, NEM végleges |
+| **domain composition (valódi, más ágon)** | `StorageResource` + `StorageAdapter` — platform-agnosztikus block volume (hypervisor/SAN/cloud) | `storage/main`, `storage/releases/v0.1.0` (origin) | korábbi, kész munka — **nincs a `devel`-en** |
 
-A domain objektum mindig következmény, soha nem kiindulópont — ez itt a
-`StorageBucket`, ami a `ManagedEntity` aggregate-et alkalmazza a `cic:storage`
-domain-ra, provider-független szinten.
+A domain objektum mindig következmény, soha nem kiindulópont. Jelenleg KÉT
+külön tervezet létezik erre a domainre, más-más ágon, egymással nem
+egyeztetve — ez a repó jelenlegi legfontosabb nyitott kérdése.
 
 ---
 
@@ -58,8 +62,8 @@ make release     # signed artifact (Vault szükséges)
 | Réteg | Státusz | Megjegyzés |
 |---|---|---|
 | Örökölt atomic/aggregate primitívák | **defined** | `schemas/atomic/`, `schemas/aggregate/` — a `cic-primitives`-ból, `base` remote-on át |
-| `StorageBucket` domain composition | **defined** | `schemas/examples/storage-bucket.yaml` — provider-agnosztikus, teljes surface-készlet (Config/State/Operation/Notification/Policy/Binding) |
-| Provider modul kötés | **partial** | `cic-module-oracle-cloud` = implemented; aws/azure/onprem modulok = concept (lásd composition `derivation_chain.provider_mapping`) |
+| `StorageBucket` domain composition (`devel`) | **draft, nem egyeztetett** | `schemas/examples/storage-bucket.yaml` — kísérleti, provider-agnosztikus vázlat, PR #3 lezárva mergelés nélkül |
+| `StorageResource`+`StorageAdapter` (valódi, más ágon) | **defined, de nincs a `devel`-en** | `storage/main` / `storage/releases/v0.1.0` — block volume, hypervisor/SAN/cloud, capability-alapú konformancia, GHCR-en publikálva |
 | KubernetesPod sablon-példa | **öröklött, nem storage-specifikus** | `schemas/examples/kubernetes-pod.yaml` — a `cic-primitives` demója, nem ennek a repónak a munkája |
 | Signed release pipeline | **defined** | Vault Transit + ECDSA, a pipeline maga lefutott (lásd git tag-ek) |
 | Production trust-chain | **not implemented** | CIC-Relay + CIC-Schemas feladata |
@@ -72,14 +76,18 @@ make release     # signed artifact (Vault szükséges)
 |---|---|
 | `cic-primitives` | közvetlen upstream — atomic/aggregate primitívák + tooling, `git remote base` |
 | `base-repo` | közvetett upstream (a `cic-primitives` saját `base@0.5.0` merge-én keresztül) |
-| `cic-module-oracle-cloud` | provider modul — a `StorageBucket` intent egyik konkrét megvalósítója, `cic:provider` WASM ABI-n keresztül |
-| `CIC-Relay` | runtime — a provider modulokat futtatja, amik a `storage-bucket.yaml` kompozíciót reconcile-olják |
+| `cic-compute` | cross-domain referencia célpontja — `StorageResource.attached_to → cic:compute:ComputeResource` |
+| `cic-module-oracle-cloud` | provider modul — egy lehetséges konkrét megvalósítója akár a `StorageBucket`, akár a `StorageResource` intentnek, `cic:provider` WASM ABI-n keresztül |
+| `CIC-Relay` | runtime — a provider modulokat/adaptereket futtatja, amik a storage compositiont reconcile-olják |
 
 ---
 
 ## Release artifact — GHCR
 
 A séma release OCI artifactként érhető el a GitHub Container Registry-ben.
+**Ez a `StorageResource`+`StorageAdapter` release** (a `storage/releases/v0.1.0`
+vonalból) — nem a `devel` ágon lévő `StorageBucket` vázlat, aminek még nincs
+saját GHCR release-e.
 
 **ORAS-szal:**
 

@@ -10,15 +10,27 @@ A `cic-storage` egy **domain-repó** a `cic-primitives` (a CentralInfraCore
 meta-séma rétege) fölött — storage objektumokat lenne hivatva leírni.
 
 Ez a fájl az öröklött primitíva-modellt magyarázza (a `cic-primitives`-ból
-származik) — ez a repó maga nem a meta-séma réteg. Saját domain compositionja
-van: `schemas/examples/storage-bucket.yaml` (`StorageBucket`), **szándékosan
-provider-agnosztikus** — leírja mit akarunk (kívánt tárolási állapot), nem azt
-hogy egy adott felhő (OCI/AWS/Azure/on-prem) hogyan valósítja meg. A tényleges
-létrehozást/felügyeletet külön `cic-module-<provider>` modulok végzik a
-`cic:provider` WASM ABI-n (describe/validate/plan/execute/observe/destroy/
-invoke/poll) keresztül — lásd a composition `derivation_chain.module_abi` és
-`provider_mapping` blokkját. Jelenleg egyedül a `cic-module-oracle-cloud` a
-`status: implemented` provider; aws/azure/onprem `status: concept`.
+származik) — ez a repó maga nem a meta-séma réteg.
+
+**⚠ A `devel` ágnak (ahol ez a fájl él) NINCS egyeztetett, kanonikus domain
+compositionja.** `schemas/examples/storage-bucket.yaml` (`StorageBucket`) egy
+kísérleti, provider-agnosztikus vázlat — leírja mit akarunk (kívánt tárolási
+állapot), nem azt hogy egy adott felhő hogyan valósítja meg — de a PR-je
+(#3) lezárva, mergelés nélkül, mert **létezik egy korábbi, valódi, kész munka**
+ugyanerre a domainre: `StorageResource` + `StorageAdapter` (block volume,
+hypervisor/SAN/cloud paradigma, capability-alapú konformancia) a `storage/main`
+és `storage/releases/v0.1.0` ágakon (origin, GHCR-en publikálva
+`v0.1.2-src2026` néven) — ez **sosem lett mergelve a `devel`-re**, és a két
+tervezet egymással nincs egyeztetve. A korábbi (`625eba7`, PR #2) állítás,
+hogy "nincs storage-specifikus domain composition", tévesen a `devel` állapotát
+általánosította a repó egészére — ez volt a hiba, nem a ténymegállapítás maga.
+
+A `StorageBucket` a `cic:provider` WASM ABI-ra (describe/validate/plan/execute/
+observe/destroy/invoke/poll) tervez kötni — lásd a composition
+`derivation_chain.module_abi` blokkját —, míg a `StorageResource` a saját
+`StorageAdapter` kontraktusára (observe/apply/watch) köt, capability-tag alapú
+konformanciával. Ezt a két kötési modellt is egyeztetni kell egymással, mielőtt
+bármelyik véglegesnek tekinthető. Lásd `ai/DECISIONS.md` D-015/D-016.
 
 A primitívek két szinten léteznek:
 
@@ -158,11 +170,14 @@ spec:
 
 **A "Phase 1–7" történet fentebb (git bootstrap, atomic/aggregate réteg,
 `make validate` zöld) a `cic-primitives` saját fejlesztési naplója** — ez a
-repó ezt öröklés útján kapta meg, nem maga hajtotta végre. A `cic-storage` saját,
-valódi státusza: a release pipeline lefutott (git tag-ek tanúsítják), és
-**van saját, provider-agnosztikus domain composition** —
-`schemas/examples/storage-bucket.yaml` (`StorageBucket`), `make validate` alatt
-zöld — lásd a README "Aktuális állapot" táblázatát.
+repó ezt öröklés útján kapta meg, nem maga hajtotta végre. A `cic-storage`
+`devel` ágának valódi státusza: a release pipeline lefutott (git tag-ek
+tanúsítják), és van egy **kísérleti, nem egyeztetett** provider-agnosztikus
+domain composition — `schemas/examples/storage-bucket.yaml` (`StorageBucket`),
+`make validate` alatt zöld, de PR-je lezárva mergelés nélkül. Emellett létezik
+egy **valódi, korábbi, kész munka** (`StorageResource`+`StorageAdapter`) a
+`storage/main`/`storage/releases/v0.1.0` ágakon, ami sosem lett a `devel`-re
+mergelve — lásd a README "Aktuális állapot" táblázatát és a fenti figyelmeztetést.
 |---|---|
 | git init + `git merge base@0.5.0` | **defined** |
 | `dependency.yaml` (D-007) | **defined** |
