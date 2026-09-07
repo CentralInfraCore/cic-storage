@@ -6,10 +6,12 @@ Olvasd el mielőtt bármit módosítasz.
 
 ## Mi ez a rendszer?
 
-A `cic-primitives` a CentralInfraCore **meta-séma rétege**.
+A `cic-storage` egy **domain-repó** a `cic-primitives` (a CentralInfraCore
+meta-séma rétege) fölött — storage objektumokat lenne hivatva leírni.
 
-Nem domain modell, nem IaC tool, nem YANG leíró — hanem az a szint,
-amelyből minden domain objektum schema-szinten levezethető.
+Ez a fájl az öröklött primitíva-modellt magyarázza (a `cic-primitives`-ból
+származik) — ez a repó maga nem a meta-séma réteg, és egyelőre nincs saját
+storage-specifikus domain compositionja sem.
 
 A primitívek két szinten léteznek:
 
@@ -45,7 +47,7 @@ ManagedEntity =
 ```
 base-repo
   └─[remote: base]─► cic-primitives
-                          └─[remote: base]─► domain repók
+                          └─[remote: base]─► cic-storage (ez a repo), cic-network, ...
 ```
 
 A fájlstruktúra IS az interface contract. Ha a leszármazott repo eltér a
@@ -58,9 +60,9 @@ Választott mechanizmus (döntés: 2026-04-30):
 
 ---
 
-## A séma infrastruktúra (örökölt base-repo-ból)
+## A séma infrastruktúra (örökölt a `cic-primitives`-on, végső soron a `base-repo`-n keresztül)
 
-A `base-repo` merge után elérhetők:
+A `cic-primitives` `base` remote-jából merge-elve elérhetők:
 
 ```
 tools/compiler.py     CLI: validate, release, get-name
@@ -138,18 +140,21 @@ spec:
 
 | Repo | Kapcsolat | Irány |
 |---|---|---|
-| `base-repo` | git remote `base` | upstream → cic-primitives |
+| `cic-primitives` | git remote `base` | upstream → cic-storage (ez a repo) |
+| `base-repo` | közvetett (a `cic-primitives` saját `base` remote-ja) | tooling eredete |
 | `CIC-Schemas` | referencia minta | signing lánc minta |
-| `CIC-Relay` | consumer | primitívekből épülő sémák futtatása |
-| domain repók (tervezett) | git remote `base` | cic-primitives → domain |
+| `CIC-Relay` | consumer | (még nincs mit futtatnia ebből a repóból) |
 
 ---
 
-## Jelenlegi állapot (2026-05-01)
+## Jelenlegi állapot
 
-Phase 1–7 végrehajtva. A repo első signed release-szel lezárt.
-
-| Elem | Státusz |
+**A "Phase 1–7" történet fentebb (git bootstrap, atomic/aggregate réteg,
+`make validate` zöld) a `cic-primitives` saját fejlesztési naplója** — ez a
+repó ezt öröklés útján kapta meg, nem maga hajtotta végre. A `cic-storage` saját,
+valódi státusza: a release pipeline lefutott (git tag-ek tanúsítják), de
+**storage-specifikus domain composition egyelőre nincs megírva** — lásd a
+README "Aktuális állapot" táblázatát.
 |---|---|
 | git init + `git merge base@0.5.0` | **defined** |
 | `dependency.yaml` (D-007) | **defined** |
@@ -170,11 +175,11 @@ Phase 1–7 végrehajtva. A repo első signed release-szel lezárt.
 
 ---
 
-## Release folyamat (Phase 7 tanulságok)
+## Release folyamat (a `cic-primitives`-tól örökölt tanulságok, `storage/*` névtérre igazítva)
 
 ```bash
 # Előfeltételek
-git checkout -b primitives/releases/vX.Y.Z
+git checkout -b storage/releases/vX.Y.Z
 tools/vault-sign-agent.sh -k <developer.key> -c <developer.crt>
 
 # Release
@@ -184,7 +189,7 @@ export VAULT_SKIP_VERIFY=1
 make release
 
 git add project.yaml
-git tag -a "primitives/@vX.Y.Z" -m "release: X.Y.Z"
+git tag -a "storage/@vX.Y.Z" -m "release: X.Y.Z"
 ```
 
 Dockerfile követelmény: `git`, `curl`, `jq`, `yq` + `safe.directory /app`.
