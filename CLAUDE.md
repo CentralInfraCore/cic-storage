@@ -1,11 +1,11 @@
-# CIC Primitives — Claude kontextus
+# CIC Storage — Claude kontextus
 
 ## Branch szabály — KÖTELEZŐ
 
 **Érdemi fejlesztés kizárólag a `devel` ágon történhet.**
 
 - `main` — csak merge fogad (devel → main), közvetlen commit tilos
-- `primitives/releases/v*` — kizárólag release tag célra
+- `storage/releases/v*` — kizárólag release tag célra
 - `devel` — ez az aktív fejlesztési ág
 
 Ha nem `devel`-en vagyunk: figyelmeztetés, és átváltás `devel`-re mielőtt bármilyen
@@ -13,14 +13,18 @@ schema, kód vagy dokumentáció változtatás történik.
 
 ## Mi ez a rendszer
 
-A `cic-primitives` a CentralInfraCore **meta-séma rétege** — az a szint, amelyből
-minden domain objektum (switch interface, kubernetes pod, service, database, policy)
-schema-szinten levezethető.
+A `cic-storage` egy **domain-repó** — a `cic-primitives` meta-séma rétegére épülve
+storage objektumokat lenne hivatva leírni, schema-szinten.
 
-Nem domain modell. Nem IaC tool. Nem YANG leíró.
+A `schemas/atomic/`+`schemas/aggregate/` alatti fájlok **öröklöttek** a
+`cic-primitives`-ból (a `base` remote-on át) — ez a repó nem definiálja őket.
+**Storage-specifikus domain composition egyelőre nincs megírva** —
+a `schemas/examples/kubernetes-pod.yaml` a `cic-primitives` öröklött
+sablon-demója, nem ennek a repónak a munkája.
 
 A primitívek azok az **irreducibilis szemantikai atomok és kompozícióik**, amelyekből
-bármilyen menedzselt objektum strukturált, validálható, verziózott YAML sémává fordítható.
+bármilyen menedzselt objektum strukturált, validálható, verziózott YAML sémává fordítható
+— ezt a réteget a `cic-primitives` adja, nem ez a repó.
 
 Részletes architektúra: `ai/SYSTEM_CONTEXT.md`
 Következő konkrét feladatok: `ai/PROMPTMAP.yaml`
@@ -53,16 +57,14 @@ Amíg ez a négy pont nincs meg, ne tegyél tényállításokat a primitive mode
 
 | Elem | Státusz | Megjegyzés |
 |---|---|---|
-| git repo bootstrap | **defined** | `git merge base@0.5.0` kész |
-| `dependency.yaml` | **defined** | `base@0.5.0` composition lock |
-| `project.yaml` | **defined** | `x-cic.repo_type: primitive` |
-| `schemas/` struktúra | **defined** | atomic/ + aggregate/ + index.yaml |
-| aggregate skeletonök | **defined** | ConfigSurface, StateSurface, OperationSurface, ManagedEntity |
-| atomic layer (8 atom) | **defined** | Shape, Role, Behavior, Contract, Address, Identity, Event, Access |
-| aggregate completion | **defined** | atomic ref-ek bekötve |
-| domain példa | **defined** | `schemas/examples/kubernetes-pod.yaml` |
+| git repo bootstrap | **defined** | `git merge base@0.5.0` a `cic-primitives`-on át (nem közvetlen) |
+| `dependency.yaml` | **defined** | `base@0.5.0` composition lock (örökölt) |
+| `project.yaml` | **defined** | `x-cic.repo_type: domain` |
+| `schemas/` struktúra | **defined** | atomic/ + aggregate/ (örökölt), nincs saját examples/ |
+| atomic/aggregate réteg | **öröklött** | Shape, Role, Behavior, Contract, Address, Identity, Event, Access + surface-aggregate-ek |
+| Storage-specifikus domain composition | **NOT IMPLEMENTED** | egyetlen saját domain composition sincs még |
 | `make validate` zöld | **defined** | Docker-alapú tooling, Vault nélkül is fut |
-| első signed release | **concept** | Vault + `make release VERSION=x` |
+| signed release pipeline | **defined** | lefutott (lásd git tag-ek), de storage-specifikus tartalom nélkül |
 
 ---
 
@@ -89,9 +91,9 @@ Az objektum mindig következmény, soha nem kiindulópont.
 ```
 base-repo (upstream sablon)
     │  remote: base → git merge base@0.5.0
-    └──► cic-primitives  (ez a repo)
+    └──► cic-primitives
               │  remote: base → git merge base@0.5.0
-              └──► domain repók (cic-yang, cic-network, stb.)
+              └──► cic-storage  (ez a repo)  ·  cic-network, cic-storage, stb. (testvér domain repók)
 ```
 
 A fájlstruktúra IS az interface contract. A merge konfliktus = séma sértés.
@@ -141,9 +143,9 @@ Immersion módban tilos hiányt feltételezni ott, ahol scaffold szándékos.
 
 | Repo | Remote | Mit ad |
 |---|---|---|
-| `base-repo` | `base` | tooling, signing hook, CI, Makefile, mk/infra.mk |
-| `CIC-Schemas` | referencia | template-schema minta, séma pipeline, signing lánc |
-| `CIC-Relay` | — | a runtime ami a primitívekből épülő sémákat futtatja |
+| `cic-primitives` | `base` | atomic/aggregate primitívák, tooling, signing hook, CI, Makefile, mk/infra.mk |
+| `base-repo` | közvetett (a `cic-primitives` saját `base` remote-ja) | eredeti tooling-sablon |
+| `CIC-Relay` | — | a runtime, ami (még nincs mit) futtatna ebből a repóból |
 
 ---
 

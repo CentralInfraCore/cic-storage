@@ -1,23 +1,28 @@
-# cic-primitives
+# cic-storage
 
-> Ez nem klasszikus repo. Ez AI-operált primitive schema layer.
+> Ez nem klasszikus repo. Ez AI-operált domain schema layer.
 > Emberi belépő: ez a README. AI belépő: `ai/ONBOARDING.md`.
 
-A CIC **meta-séma rétege** — az a szint, amelyből minden domain objektum
-(switch interface, kubernetes pod, service, database, policy) schema-szinten levezethető.
+A `cic-storage` a `cic-primitives` **meta-séma rétegére** épülő domain-repó — storage
+objektumokat lenne hivatva leírni, a `cic-primitives` atomic/aggregate
+primitíváinak kompozíciójaként.
 
-Nem domain modell. Nem IaC tool. Nem YANG leíró.
+**Egyelőre nincs storage-specifikus domain composition megírva** — a
+`schemas/examples/` alatt csak a `cic-primitives` sablon-demója
+(`kubernetes-pod.yaml`) van, ami nem storage-specifikus.
 
 ---
 
 ## Két szint
 
-| Szint | Mit képvisel | Hol van |
-|---|---|---|
-| **atomic primitive** | 8 irreducibilis atom — Shape, Role, Behavior, Contract, Address, Identity, Event, Access | `schemas/atomic/` |
-| **aggregate primitive** | Kompozíció sealed/defaulted/required slot-okkal | `schemas/aggregate/` |
+| Szint | Mit képvisel | Hol van | Eredet |
+|---|---|---|---|
+| **atomic primitive** | 8 irreducibilis atom — Shape, Role, Behavior, Contract, Address, Identity, Event, Access | `schemas/atomic/` | öröklött a `cic-primitives`-ból |
+| **aggregate primitive** | Kompozíció sealed/defaulted/required slot-okkal | `schemas/aggregate/` | öröklött a `cic-primitives`-ból |
+| **domain composition** | konkrét storage objektum | — | **még nincs megírva** |
 
-A domain objektum mindig következmény, soha nem kiindulópont.
+A domain objektum mindig következmény, soha nem kiindulópont — ennek a
+repónak egyelőre nincs saját domain-kompozíciója, amiből ez következne.
 
 ---
 
@@ -46,18 +51,10 @@ make release     # signed artifact (Vault szükséges)
 
 | Réteg | Státusz | Megjegyzés |
 |---|---|---|
-| 8 atomic primitive YAML | **defined** | Shape · Role · Behavior · Contract · Address · Identity · Event · Access |
-| 5 aggregate primitive YAML | **defined** | ManagedEntity, ConfigSurface, StateSurface, OperationSurface, PolicySurface |
-| Primitive meta-schema validáció | **defined** | `schemas/index.yaml` + `compiler.py` — `make validate` zöld |
-| sealed/required slot enforcement | **defined** | domain specializáció kompatibilitás ellenőrzött |
-| KubernetesPod domain példa | **defined** | `schemas/examples/kubernetes-pod.yaml` |
-| Signed release pipeline | **defined** | Vault Transit + ECDSA, `primitives/@v0.1.3` kiadva |
-| defaulted slot merge szemantika | **draft** | replace/deep_merge/append/union — D-008, első domain override-nál dől el |
-| build provenance | **draft** | `build_hash == source_hash` — külön build lépés még nincs |
-| LifecycleSurface / CapabilitySurface / NotificationSurface | **concept** | Relay execution modell előfeltétel |
-| ExecutionSurface aggregate | **concept** | D-009, Relay modell előfeltétel |
-| Schema/API/runtime kódgenerálás | **not implemented** | a `semantic_mapping` mezők irányt adnak, de generator nincs |
-| Teljes szemantikai típusellenőrzés | **not implemented** | a jelenlegi validator formai, nem szemantikai |
+| Örökölt atomic/aggregate primitívák | **defined** | `schemas/atomic/`, `schemas/aggregate/` — a `cic-primitives`-ból, `base` remote-on át |
+| Storage-specifikus domain composition | **NOT IMPLEMENTED** | egyetlen saját domain composition sincs még megírva |
+| KubernetesPod sablon-példa | **öröklött, nem storage-specifikus** | `schemas/examples/kubernetes-pod.yaml` — a `cic-primitives` demója |
+| Signed release pipeline | **defined** | Vault Transit + ECDSA, a pipeline maga lefutott (lásd git tag-ek), de storage-specifikus tartalom nélkül |
 | Production trust-chain | **not implemented** | CIC-Relay + CIC-Schemas feladata |
 
 ---
@@ -66,9 +63,9 @@ make release     # signed artifact (Vault szükséges)
 
 | Repo | Kapcsolat |
 |---|---|
-| `base-repo` | upstream tooling (Makefile, CI, compiler) — `git merge base@0.5.0` |
-| `CIC-Relay` | runtime — primitívekből épülő sémákat futtatja |
-| domain repók | leszármazottak — `cic-primitives` a base-jük |
+| `cic-primitives` | közvetlen upstream — atomic/aggregate primitívák + tooling, `git remote base` |
+| `base-repo` | közvetett upstream (a `cic-primitives` saját `base@0.5.0` merge-én keresztül) |
+| `CIC-Relay` | runtime — (még nincs mit futtatnia ebből a repóból) |
 
 ---
 

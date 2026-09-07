@@ -1,8 +1,8 @@
 project:
-  name: cic-primitives
-  description: CIC meta-schema layer — atomic and aggregate primitives
+  name: cic-storage
+  description: CIC storage domain — storage object schemas composed from cic-primitives atoms/aggregates (no domain-specific composition authored yet)
   license: CC-BY-NC-SA-4.0
-  main_branch: primitives/main
+  main_branch: storage/main
   owner: Gabor Zoltan Sinko
   maintenance:
     status: active
@@ -12,7 +12,7 @@ project:
       value: sinkog@centralinfracore.hu
   links:
     - name: repository
-      url: https://github.com/CentralInfraCore/cic-primitives.git
+      url: https://github.com/CentralInfraCore/cic-storage.git
 compiler_settings:
   meta_schemas_dir: ./
   source_dir: schemas
@@ -23,4 +23,4 @@ compiler_settings:
   owner_email: sinkog@centralinfracore.hu
   validity_days: 365
 x-cic:
-  repo_type: primitive
+  repo_type: domain

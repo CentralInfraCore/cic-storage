@@ -1,6 +1,6 @@
 # AI Maintenance Contract
 
-A `cic-primitives` repo AI üzemeltetési kézikönyve.
+A `cic-storage` repo AI üzemeltetési kézikönyve.
 
 ---
 
