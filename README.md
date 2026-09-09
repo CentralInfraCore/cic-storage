@@ -1,3 +1,9 @@
+> **⚠ ARCHIVÁLVA** — ez a repó le lett váltva. A séma-leírások (byte-verbatim, valós aláírással migrálva, ténylegesen `openssl`-lel ellenőrizve) átkerültek ide: [`CentralInfraCore/cic-schema-registry`](https://github.com/CentralInfraCore/cic-schema-registry) — lásd az ottani `general/` (és `standards/`, ha van) alatti megfelelő könyvtárat, minden fájlhoz bő README-vel (provenance, aláírás-ellenőrzés, ismert eltérések).
+>
+> A kód (ha van, pl. adapter-implementáció) NEM ide tartozik, ez a repó csak a séma-leírásokat adta.
+
+---
+
 # cic-primitives
 
 > Ez nem klasszikus repo. Ez AI-operált primitive schema layer.
